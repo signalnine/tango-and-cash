@@ -1,7 +1,7 @@
 {
   "name": "tango-and-cash",
   "description": "Pair programming skill: Gemini thinks, Claude does — minimize Claude token spend",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "author": {
     "name": "Gabe Ortiz",
     "email": "gabe@signalnine.com"
