@@ -63,10 +63,14 @@ Relevant files in this project:
 - src/middleware/auth.ts
 - src/types/index.ts
 
-Read them and implement the changes. Output each file with its path." -o text 2>&1
+Read them and implement the changes. Output ALL files that need changes with their full paths. Use this format for each file:
+
+=== filepath ===
+(file contents)
+=== end ===" -o text 2>&1
 ```
 
-Gemini reads files in the working directory. List paths — don't paste contents, don't burn Claude tokens on context.
+Gemini reads files in the working directory. List paths — don't paste contents, don't burn Claude tokens on context. Multi-file changes are fine — Gemini handles coherence across files, Claude just parses and writes.
 
 ### For debugging
 
@@ -97,11 +101,13 @@ gemini -p "I need to add [FEATURE] to this project. Read the codebase and propos
 
 Claude's job is **mechanical** — parse Gemini's response, write files, run verification:
 
-1. Extract code blocks and file paths from Gemini's output
+1. Parse the `=== filepath ===` delimiters to extract each file and its path
 2. Write each file using Write/Edit tools
 3. Run tests/build/lint
 4. If failures: send error output back to Gemini (not Claude analysis — just the raw output)
 5. Git add, commit, push
+
+**Parsing is critical.** If Gemini doesn't use the delimiter format, look for markdown headers with file paths, fenced code blocks with filenames, or any clear file boundary markers. When ambiguous, ask Gemini to re-output with the `=== filepath ===` format.
 
 **Do NOT:** re-analyze Gemini's code in detail, rewrite it, or add your own improvements. That burns tokens. If something is wrong, send it back to Gemini.
 
@@ -117,7 +123,7 @@ The files are already written. Read them in the project and fix the issues. Outp
 
 Forward raw error output. Don't summarize or analyze — that's Claude tokens wasted on work Gemini can do.
 
-**Max 3 rounds.** If Gemini can't fix it, then Claude intervenes.
+**Max 3 rounds.** If Gemini can't fix it, Claude writes it directly. Don't persist — if round 2 isn't converging, bail at round 2. The point is saving tokens, not proving Gemini can do it.
 
 ## Token Discipline
 
@@ -136,6 +142,7 @@ Forward raw error output. Don't summarize or analyze — that's Claude tokens wa
 |---------|-----|
 | `TerminalQuotaError` | Gemini quota hit — do the work yourself |
 | Empty/garbage output | Shorter prompt, fewer files, more specific task |
-| Markdown fences in output | Parse around them or add "no markdown fences" |
+| Can't parse file boundaries | Ask Gemini to re-output with `=== filepath ===` format |
+| Round 2 not converging | Bail. Claude writes it directly. Don't burn 3 rounds hoping. |
 | Gemini misunderstands project structure | Add `--include-directories .` and list key file paths |
 | Gemini suggests wrong patterns | Add "read src/existing-example.ts and follow that pattern" |
