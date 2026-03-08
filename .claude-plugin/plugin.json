@@ -1,7 +1,7 @@
 {
   "name": "tango-and-cash",
-  "description": "Pair programming skill: Claude architects, Gemini implements via CLI",
-  "version": "1.0.0",
+  "description": "Pair programming skill: Gemini thinks, Claude does — minimize Claude token spend",
+  "version": "2.0.0",
   "author": {
     "name": "Gabe Ortiz",
     "email": "gabe@signalnine.com"
