@@ -6,27 +6,27 @@ In the 1989 classic, Ray Tango (Stallone) is the suit — meticulous, strategic,
 
 This is that, but for code.
 
-**Claude is Tango.** Reads the room. Designs the plan. Reviews every detail before it ships. Never fires without knowing where the bullet lands.
+**Gemini is Cash.** Does the heavy lifting. Thinks through the problem. Writes the code. Unlimited ammo.
 
-**Gemini is Cash.** Writes fast. Doesn't overthink it. Produces volume. Needs somebody watching the angles.
+**Claude is Tango.** Runs the operation. Opens the doors, plants the charges, handles the extraction. Expensive but precise — every move counts.
 
 Together they clear the building.
 
 ## What This Is
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that turns Gemini CLI into your pair programming partner. Claude architects the approach and crafts precise implementation prompts. Gemini writes the code. Claude reviews it before anything hits the codebase.
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill for when Gemini is free and Claude tokens are not. All the heavy thinking — planning, code generation, analysis, debugging — goes to Gemini CLI. Claude handles what Gemini can't: tool use, file writes, git operations, running tests.
 
-Like any good buddy cop arrangement: one plans, one executes, and neither fully trusts the other's judgment alone. That tension is the feature.
+You stay in the Claude Code CLI. Your token bill stays low. Cash does the shooting. Tango drives the getaway car.
 
 ## The Workflow
 
 ```
-Claude reads the codebase          ← Tango studies the case file
-Claude designs the approach        ← Tango picks the entry point
-Claude writes the prompt           ← Tango briefs Cash
-Gemini writes the code             ← Cash kicks in the door
-Claude reviews the output          ← Tango checks for collateral damage
-Ship it or send Cash back in       ← max 3 rounds, then Tango does it himself
+User gives the task              ← dispatch comes in
+Claude sends it to Gemini        ← Tango sends Cash in
+Gemini thinks, plans, writes     ← Cash clears the building
+Claude writes files, runs tests  ← Tango handles the paperwork
+Tests fail? Send output to Gemini← Cash, you missed one
+Tests pass? Git commit, done     ← case closed
 ```
 
 ## Install
@@ -42,32 +42,33 @@ Or manually copy `skills/tango-and-cash/SKILL.md` into your `~/.claude/skills/` 
 
 ## How It Works
 
-The skill teaches Claude to:
+The skill teaches Claude to be **cheap and effective:**
 
-1. **Architect first** — read the codebase, design the approach, decide file structure
-2. **Write surgical prompts** — one file per prompt, numbered requirements, explicit constraints
-3. **Invoke Gemini headless** — `gemini -p "..." -o text` captures output without Gemini touching files
-4. **Review everything** — 5-point checklist: requirements, security, edge cases, style, dependencies
-5. **Know when to bail** — 3 rounds max. If Gemini can't nail it, Claude writes it. No ego.
+1. **Dispatch, don't think** — send the task to Gemini with file paths. Don't analyze the codebase yourself, that burns tokens.
+2. **Let Gemini read** — Gemini has workspace access. List the relevant paths, don't paste file contents.
+3. **Apply mechanically** — parse Gemini's output, write files, run tests. No re-analysis.
+4. **Forward, don't summarize** — if tests fail, pipe the raw output back to Gemini. Don't spend tokens explaining what went wrong.
+5. **3 rounds max** — if Gemini can't fix it in 3 tries, then Claude steps in.
 
 ## Why Two AIs?
 
-Same reason Tango and Cash worked: different strengths, mutual accountability.
+Economics. Not every bullet needs to be gold.
 
-- **Different training data** — they catch different bugs, suggest different patterns
-- **Forced review** — Claude can't skip review when the code came from someone else
-- **Speed** — Gemini generates fast; Claude's time goes to design and review instead of typing
-- **Pressure relief** — boilerplate, tests, and scaffolding go to Gemini; Claude focuses on architecture
+- **Gemini is free** — all the thinking, generation, and iteration costs nothing
+- **Claude is precise** — tool use, git, file I/O, test execution — the stuff Gemini fumbles
+- **Tests are the review** — no need for Claude to read and analyze Gemini's code; if the tests pass, ship it
+- **Token discipline** — Claude's job is dispatch + apply + verify, not think + plan + review + improve
 
 ## The Rules
 
 Straight from the skill:
 
-- **One file per prompt.** Cash doesn't clear two rooms at once.
-- **Number your requirements.** So you can say "requirement 3 is wrong" not "the thing with the stuff."
-- **Never let Gemini write files directly.** Capture output, review, then write. Tango always checks Cash's work.
-- **Max 3 iterations.** If it's not right after 3 rounds, do it yourself. Don't send Cash back into a building that's on fire.
-- **Reference files by path.** Gemini can read your project — don't paste the whole codebase into the prompt.
+- **Dispatch first, think later.** Send it to Cash. Only step in if he can't close it.
+- **Never paste file contents.** List paths — Gemini reads them. Pasting burns Claude tokens.
+- **Pipe raw errors.** `$(npm test 2>&1)` — don't summarize, don't analyze, just forward.
+- **Tests are the review.** If it passes, ship it. Don't spend tokens second-guessing.
+- **Max 3 rounds.** If Cash can't clear the room in 3 tries, Tango goes in.
+- **Less text, fewer tokens.** Every word Claude writes costs money. Be terse.
 
 ## License
 
