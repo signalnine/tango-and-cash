@@ -1,0 +1,5 @@
+node_modules/
+.beads/
+*.swp
+*.swo
+.DS_Store
