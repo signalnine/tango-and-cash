@@ -11,7 +11,7 @@ Gemini thinks. Claude does.
 
 Gemini is free and unlimited. Claude tokens are expensive. Offload all heavy thinking — planning, code generation, analysis, debugging — to Gemini. Claude handles what Gemini can't: tool use, file writes, git operations, running tests.
 
-**Goal: minimize Claude token spend while staying in Claude Code CLI.**
+**Goal: minimize Claude token spend while maximizing task completion.**
 
 ## When to Use
 
@@ -23,107 +23,123 @@ Gemini is free and unlimited. Claude tokens are expensive. Offload all heavy thi
 
 ## Workflow
 
-```dot
-digraph tango_and_cash {
-    rankdir=TB;
-    node [shape=box];
-
-    task [label="User gives task"];
-    dispatch [label="1. Dispatch to Gemini\n(pass task + context)"];
-    receive [label="2. Receive code/plan"];
-    apply [label="3. Apply: write files,\nrun tests, git ops\n(Claude's job)"];
-    check [label="Tests pass?" shape=diamond];
-    fix [label="Send failures\nback to Gemini"];
-    done [label="Done"];
-
-    task -> dispatch -> receive -> apply -> check;
-    check -> done [label="yes"];
-    check -> fix [label="no"];
-    fix -> receive;
-}
+```
+Task → Plan (Gemini) → Implement (Gemini) → Apply (Claude) → Tests pass? → Done
+                                                    ↓ no
+                                              Send failures → Gemini fixes → Apply again
 ```
 
-**Claude's token budget per task:**
-- Build the prompt (~short: task description + file paths)
-- Parse output (skim for file boundaries)
-- Write files, run tests, git commit
-- If failures: forward error output to Gemini
+### Step 1: Plan via Gemini
 
-**Gemini's budget (free):** all the thinking, planning, code generation, analysis.
+Always start with a plan. Don't skip this — it prevents incomplete implementations.
 
-## Dispatching to Gemini
+```bash
+gemini -p "Read this project and plan the implementation for:
 
-### Standard pattern
+$(cat /task.md 2>/dev/null || echo 'TASK_DESCRIPTION')
+
+List every file to create/modify, what changes each needs, and what tests to write. Be exhaustive — every requirement must map to a specific file and test." --approval-mode plan -o text 2>&1
+```
+
+Claude's job: skim the plan for completeness. Are all requirements covered? If not, ask Gemini to revise. Don't analyze the plan in detail — just check nothing is missing.
+
+### Step 2: Implement via Gemini
+
+#### Agentic mode (preferred for multi-file work)
+
+Let Gemini read, write, and test directly:
+
+```bash
+gemini -p "Implement the following in this project:
+
+TASK_DESCRIPTION
+
+Requirements:
+1. [from plan]
+2. [from plan]
+...
+
+Constraints:
+- Follow patterns in [existing files]
+- [Language/framework constraints]
+- Write tests covering every requirement and edge cases (empty, null, boundary, error paths)
+
+Read existing code first. Write all files directly." -y --sandbox false 2>&1
+```
+
+#### Text mode (for targeted single-file changes)
 
 ```bash
 gemini -p "TASK_DESCRIPTION
 
-Relevant files in this project:
+Relevant files:
 - src/routes/users.ts
-- src/middleware/auth.ts
 - src/types/index.ts
 
-Read them and implement the changes. Output ALL files that need changes with their full paths. Use this format for each file:
+Read them. Output ALL changed files with full paths:
 
 === filepath ===
 (file contents)
 === end ===" -o text 2>&1
 ```
 
-Gemini reads files in the working directory. List paths — don't paste contents, don't burn Claude tokens on context. Multi-file changes are fine — Gemini handles coherence across files, Claude just parses and writes.
+Then Claude parses delimiters and writes files. Mechanical — don't re-analyze.
 
-### For debugging
+### Step 3: Apply and Verify (Claude)
 
-```bash
-gemini -p "These tests are failing:
+Claude's job is **mechanical**:
 
-$(npm test 2>&1 | tail -50)
+1. If text mode: parse `=== filepath ===` delimiters, write each file
+2. If agentic mode: files are already written — verify they exist
+3. Run tests: `npm test 2>&1`
+4. Run build: `npm run build 2>&1` (or equivalent)
+5. Run lint: `npx eslint . 2>&1` (or equivalent)
 
-Relevant source files are in src/. Read them, diagnose the root cause, and output fixed code with file paths." -o text 2>&1
-```
+**Do NOT:** re-analyze Gemini's code, rewrite it, or add improvements. That burns tokens. If tests pass, move to the completion gate.
 
-### For design/planning
+### Step 4: Fix Failures (if any)
 
-```bash
-gemini -p "I need to add [FEATURE] to this project. Read the codebase and propose an implementation plan. List which files to create/modify and what changes to make in each." --approval-mode plan -o text 2>&1
-```
-
-### Key flags
-
-| Flag | Use |
-|------|-----|
-| `-p "..."` | Non-interactive — **always required** |
-| `-o text` | Clean output — **always use** |
-| `--approval-mode plan` | Read-only (for analysis/planning) |
-| `-y --sandbox` | Let Gemini use tools in sandbox |
-
-## Applying Output
-
-Claude's job is **mechanical** — parse Gemini's response, write files, run verification:
-
-1. Parse the `=== filepath ===` delimiters to extract each file and its path
-2. Write each file using Write/Edit tools
-3. Run tests/build/lint
-4. If failures: send error output back to Gemini (not Claude analysis — just the raw output)
-5. Git add, commit, push
-
-**Parsing is critical.** If Gemini doesn't use the delimiter format, look for markdown headers with file paths, fenced code blocks with filenames, or any clear file boundary markers. When ambiguous, ask Gemini to re-output with the `=== filepath ===` format.
-
-**Do NOT:** re-analyze Gemini's code in detail, rewrite it, or add your own improvements. That burns tokens. If something is wrong, send it back to Gemini.
-
-## Iteration on Failures
+Forward raw error output to Gemini — don't summarize:
 
 ```bash
-gemini -p "The implementation you suggested has test failures:
+gemini -p "The implementation has failures:
 
 $(npm test 2>&1 | tail -80)
 
-The files are already written. Read them in the project and fix the issues. Output only the files that need changes, with their paths." -o text 2>&1
+Files are already written. Read them and fix the issues. Write corrected files directly." -y --sandbox false 2>&1
 ```
 
-Forward raw error output. Don't summarize or analyze — that's Claude tokens wasted on work Gemini can do.
+**Max 3 rounds.** If round 2 isn't converging, bail and write it yourself. Don't persist.
 
-**Max 3 rounds.** If Gemini can't fix it, Claude writes it directly. Don't persist — if round 2 isn't converging, bail at round 2. The point is saving tokens, not proving Gemini can do it.
+### Step 5: Ensure Tests Exist
+
+**Tests are mandatory.** If Gemini didn't write tests, delegate:
+
+```bash
+gemini -p "Write comprehensive tests for the implementation in this project.
+
+Test framework: vitest (or whatever is configured)
+Cover:
+1. Every requirement from the task
+2. Edge cases: empty input, null, boundary values
+3. Error paths: invalid input, missing data
+
+Read the source code first. Write test files directly." -y --sandbox false 2>&1
+```
+
+Run tests after. If they fail, send failures back (Step 4).
+
+### Step 6: Completion Gate (MANDATORY)
+
+**Do NOT claim done without passing ALL checks:**
+
+1. Run full test suite — read output, count passes/failures
+2. Run build — must succeed
+3. Run lint — fix any errors
+4. If ANY failure: fix and re-run ALL checks
+5. Quick diff review: any TODOs, debug artifacts, or missing files?
+
+Only stop when everything passes.
 
 ## Token Discipline
 
@@ -135,14 +151,24 @@ Forward raw error output. Don't summarize or analyze — that's Claude tokens wa
 | Summarize errors for Gemini | Pipe raw output — `$(npm test 2>&1)` |
 | Add your own improvements | If it passes tests, ship it |
 | Explain what you're doing | Just do it. Less text = fewer tokens. |
+| Read files to understand the codebase | Let Gemini read them — it's free |
+
+## Gemini CLI Reference
+
+| Flag | Use |
+|------|-----|
+| `-p "..."` | Non-interactive — **always required** |
+| `-y --sandbox false` | Agentic: reads/writes files, auto-approves |
+| `-o text` | Text-only output for parsing |
+| `--approval-mode plan` | Read-only analysis |
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| `TerminalQuotaError` | Gemini quota hit — do the work yourself |
+| `TerminalQuotaError` | Do the work yourself |
 | Empty/garbage output | Shorter prompt, fewer files, more specific task |
-| Can't parse file boundaries | Ask Gemini to re-output with `=== filepath ===` format |
-| Round 2 not converging | Bail. Claude writes it directly. Don't burn 3 rounds hoping. |
-| Gemini misunderstands project structure | Add `--include-directories .` and list key file paths |
-| Gemini suggests wrong patterns | Add "read src/existing-example.ts and follow that pattern" |
+| Can't parse file boundaries | Use agentic mode instead (`-y --sandbox false`) |
+| Round 2 not converging | Bail. Write it yourself. |
+| Gemini misunderstands project | Add key file paths to prompt |
+| Missing tests after implementation | Delegate test writing separately (Step 5) |
