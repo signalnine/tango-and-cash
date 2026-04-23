@@ -36,7 +36,7 @@ Always start with a plan. Don't skip this — it prevents incomplete implementat
 ```bash
 gemini -p "Read this project and plan the implementation for:
 
-$(cat /task.md 2>/dev/null || echo 'TASK_DESCRIPTION')
+TASK_DESCRIPTION
 
 List every file to create/modify, what changes each needs, and what tests to write. Be exhaustive — every requirement must map to a specific file and test." --approval-mode plan -o text 2>&1
 ```
