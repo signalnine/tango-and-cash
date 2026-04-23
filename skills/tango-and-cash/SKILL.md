@@ -67,7 +67,7 @@ Constraints:
 Read existing code first. Write all files directly." -y --sandbox false 2>&1
 ```
 
-#### Text mode (for targeted single-file changes)
+#### Text mode (for small, focused changes)
 
 ```bash
 gemini -p "TASK_DESCRIPTION
