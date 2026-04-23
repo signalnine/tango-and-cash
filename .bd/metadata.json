@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "tango_and_cash",
+  "project_id": "46bcff49-4e3a-4ae0-b566-5e7db8522006"
+}
