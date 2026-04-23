@@ -38,7 +38,9 @@ gemini -p "Read this project and plan the implementation for:
 
 TASK_DESCRIPTION
 
-List every file to create/modify, what changes each needs, and what tests to write. Be exhaustive — every requirement must map to a specific file and test." --approval-mode plan -o text 2>&1
+List every file to create/modify, what changes each needs, and what tests to write. Be exhaustive — every requirement must map to a specific file and test.
+
+Do not write or modify any files — this is a planning pass only." -o text 2>&1
 ```
 
 Claude's job: skim the plan for completeness. Are all requirements covered? If not, ask Gemini to revise. Don't analyze the plan in detail — just check nothing is missing.
@@ -64,7 +66,7 @@ Constraints:
 - [Language/framework constraints]
 - Write tests covering every requirement and edge cases (empty, null, boundary, error paths)
 
-Read existing code first. Write all files directly." -y --sandbox false 2>&1
+Read existing code first. Write all files directly." -y --no-sandbox 2>&1
 ```
 
 #### Text mode (for small, focused changes)
@@ -106,7 +108,7 @@ gemini -p "The implementation has failures:
 
 $(npm test 2>&1 | tail -80)
 
-Files are already written. Read them and fix the issues. Write corrected files directly." -y --sandbox false 2>&1
+Files are already written. Read them and fix the issues. Write corrected files directly." -y --no-sandbox 2>&1
 ```
 
 **Max 3 rounds.** If round 2 isn't converging, bail and write it yourself. Don't persist.
@@ -124,7 +126,7 @@ Cover:
 2. Edge cases: empty input, null, boundary values
 3. Error paths: invalid input, missing data
 
-Read the source code first. Write test files directly." -y --sandbox false 2>&1
+Read the source code first. Write test files directly." -y --no-sandbox 2>&1
 ```
 
 Run tests after. If they fail, send failures back (Step 4).
@@ -158,9 +160,8 @@ Only stop when everything passes.
 | Flag | Use |
 |------|-----|
 | `-p "..."` | Non-interactive — **always required** |
-| `-y --sandbox false` | Agentic: reads/writes files, auto-approves |
+| `-y --no-sandbox` | Agentic: reads/writes files, auto-approves |
 | `-o text` | Text-only output for parsing |
-| `--approval-mode plan` | Read-only analysis |
 
 ## Troubleshooting
 
@@ -168,7 +169,7 @@ Only stop when everything passes.
 |---------|-----|
 | `TerminalQuotaError` | Do the work yourself |
 | Empty/garbage output | Shorter prompt, fewer files, more specific task |
-| Can't parse file boundaries | Use agentic mode instead (`-y --sandbox false`) |
+| Can't parse file boundaries | Use agentic mode instead (`-y --no-sandbox`) |
 | Round 2 not converging | Bail. Write it yourself. |
 | Gemini misunderstands project | Add key file paths to prompt |
 | Missing tests after implementation | Delegate test writing separately (Step 5) |
