@@ -68,7 +68,7 @@ Straight from the skill:
 - **Never paste file contents.** List paths — Gemini reads them. Pasting burns Claude tokens.
 - **Pipe raw errors.** `$(npm test 2>&1)` — don't summarize, don't analyze, just forward.
 - **Tests are the review.** If it passes, ship it. Don't spend tokens second-guessing.
-- **Max 3 rounds.** If Tango can't plan it in 3 tries, Cash goes in alone.
+- **Max 3 rounds.** If Tango can't fix it in 3 tries, Cash goes in alone.
 - **Less text, fewer tokens.** Every word Claude writes costs money. Be terse.
 
 ## License
