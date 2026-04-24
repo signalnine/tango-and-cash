@@ -34,7 +34,7 @@ Tests pass? Git commit, done     ← case closed
 
 Add `signalnine/honest-gabes-marketplace` to your Claude Code settings, then the skill is available as `tango-and-cash`.
 
-Or manually copy `skills/tango-and-cash/SKILL.md` into your `~/.claude/skills/` directory.
+Or manually copy the `skills/tango-and-cash/` directory into your `~/.claude/skills/` directory, so the skill ends up at `~/.claude/skills/tango-and-cash/SKILL.md`.
 
 ### Prerequisites
 
