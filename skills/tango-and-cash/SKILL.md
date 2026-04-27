@@ -104,12 +104,24 @@ Claude's job is **mechanical**:
 Forward raw error output to Gemini — don't summarize:
 
 ```bash
+TEST_OUT=$(npm test 2>&1)
 gemini -p "The implementation has failures:
 
-$(npm test 2>&1 | tail -80)
+$TEST_OUT
 
 Files are already written. Read them and fix the issues. Write corrected files directly." -y --no-sandbox 2>&1
 ```
+
+**Why no `tail -N`:** test runners print the first failure's stack trace near the top, then continue running, with the summary at the bottom. `tail` drops the actual error and keeps the summary — Gemini fixes the wrong thing or asks for more context.
+
+**If output is huge** (>500 lines, blowing the prompt), keep the first failure AND the summary:
+
+```bash
+TEST_OUT=$(npm test 2>&1)
+TRUNC=$({ echo "$TEST_OUT" | head -200; echo "...[middle truncated]..."; echo "$TEST_OUT" | tail -50; })
+```
+
+The tradeoff: `head -200` alone loses pass/fail counts; `tail -80` alone loses stack traces; the head+tail combo loses middle failures (acceptable — fix the first one, re-run, the next surfaces).
 
 **Max 3 rounds.** If round 2 isn't converging, bail and write it yourself. Don't persist.
 
