@@ -6,6 +6,8 @@
     "name": "Gabe Ortiz",
     "email": "gabe@signalnine.com"
   },
+  "homepage": "https://github.com/signalnine/tango-and-cash",
+  "repository": "https://github.com/signalnine/tango-and-cash",
   "license": "MIT",
   "keywords": ["skills", "pair-programming", "gemini", "code-generation", "review"]
 }
