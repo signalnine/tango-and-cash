@@ -123,7 +123,7 @@ TRUNC=$({ echo "$TEST_OUT" | head -200; echo "...[middle truncated]..."; echo "$
 
 The tradeoff: `head -200` alone loses pass/fail counts; `tail -80` alone loses stack traces; the head+tail combo loses middle failures (acceptable — fix the first one, re-run, the next surfaces).
 
-**Max 3 rounds.** If round 2 isn't converging, bail and write it yourself. Don't persist.
+**Max 3 rounds.** If Gemini can't fix it in 3 tries, bail and write it yourself. Don't persist.
 
 ### Step 5: Ensure Tests Exist
 
@@ -182,6 +182,6 @@ Only stop when everything passes.
 | `TerminalQuotaError` | Do the work yourself |
 | Empty/garbage output | Shorter prompt, fewer files, more specific task |
 | Can't parse file boundaries | Use agentic mode instead (`-y --no-sandbox`) |
-| Round 2 not converging | Bail. Write it yourself. |
+| 3 rounds and still failing | Bail. Write it yourself. |
 | Gemini misunderstands project | Add key file paths to prompt |
 | Missing tests after implementation | Delegate test writing separately (Step 5) |
