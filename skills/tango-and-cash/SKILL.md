@@ -127,12 +127,15 @@ The tradeoff: `head -200` alone loses pass/fail counts; `tail -80` alone loses s
 
 ### Step 5: Ensure Tests Exist
 
-**Tests are mandatory.** If Gemini didn't write tests, delegate:
+**Tests are mandatory.** If Gemini didn't write tests, delegate.
+
+First detect the test framework: check `package.json` devDependencies (vitest/jest/mocha), `pyproject.toml` or `requirements*.txt` (pytest), `go.mod` (`go test`), `Cargo.toml` (`cargo test`), or existing test files (`*_test.*`, `tests/`, `spec/`). Substitute the actual framework into the prompt.
 
 ```bash
+FRAMEWORK="<detected — e.g., pytest, jest, go test>"
 gemini -p "Write comprehensive tests for the implementation in this project.
 
-Test framework: vitest (or whatever is configured)
+Test framework: $FRAMEWORK
 Cover:
 1. Every requirement from the task
 2. Edge cases: empty input, null, boundary values
@@ -145,15 +148,25 @@ Run tests after. If they fail, send failures back (Step 4).
 
 ### Step 6: Completion Gate (MANDATORY)
 
-**Do NOT claim done without passing ALL checks:**
+**Run every check this project has — but only the ones it has.**
 
-1. Run full test suite — read output, count passes/failures
-2. Run build — must succeed
-3. Run lint — fix any errors
-4. If ANY failure: fix and re-run ALL checks
-5. Quick diff review: any TODOs, debug artifacts, or missing files?
+First detect available gates by looking at the project (`package.json` scripts, `Makefile`, `pyproject.toml`, `go.mod`, lint configs). Common commands:
 
-Only stop when everything passes.
+- Tests: `npm test`, `pytest`, `go test ./...`, `cargo test`
+- Build: `npm run build`, `make`, `tsc`, `go build ./...`, `cargo build`
+- Lint: `npm run lint`, `ruff check`, `golangci-lint run`, `npx eslint .`
+
+Run each gate that exists. Skip the ones that don't. Don't fabricate commands a project doesn't define.
+
+**Projects with no gates** (docs-only, bash script collections, config repos, single-file utilities): smoke-test the changed file by running it, lint markdown if present, spot-check the diff for typos and stray debug output. That is "done" — there is nothing else to verify.
+
+**Projects with gates:**
+
+1. Run every detected gate — read output, count passes/failures
+2. If ANY failure: fix and re-run ALL detected gates
+3. Quick diff review: TODOs, debug artifacts, missing files?
+
+Only stop when every detected gate passes.
 
 ## Token Discipline
 
