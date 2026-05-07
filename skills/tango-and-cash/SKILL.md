@@ -24,7 +24,7 @@ Gemini is free and unlimited. Claude tokens are expensive. Offload all heavy thi
 ## Workflow
 
 ```
-Task → Plan (Gemini) → Implement (Gemini) → Apply (Claude) → Tests pass? → Done
+Task → Plan (Gemini) → Implement (Gemini) → Apply (Claude) → Tests pass? → Commit & push → Done
                                                     ↓ no
                                               Send failures → Gemini fixes → Apply again
 ```
@@ -40,8 +40,10 @@ TASK_DESCRIPTION
 
 List every file to create/modify, what changes each needs, and what tests to write. Be exhaustive — every requirement must map to a specific file and test.
 
-Do not write or modify any files — this is a planning pass only." -o text 2>&1
+Do not write or modify any files — this is a planning pass only." --approval-mode plan -o text 2>&1
 ```
+
+`--approval-mode plan` puts Gemini in read-only mode so it can read project files but cannot write — defense in depth alongside the prompt instruction.
 
 Claude's job: skim the plan for completeness. Are all requirements covered? If not, ask Gemini to revise. Don't analyze the plan in detail — just check nothing is missing.
 
@@ -78,11 +80,12 @@ Relevant files:
 - src/routes/users.ts
 - src/types/index.ts
 
-Read them. Output ALL changed files with full paths:
+Read them. Output ALL changed files with full paths. Bracket each file with a single delimiter line; the next delimiter (or EOF) ends the file:
 
 === filepath ===
 (file contents)
-=== end ===" -o text 2>&1
+=== next/filepath ===
+(file contents)" -o text 2>&1
 ```
 
 Then Claude parses delimiters and writes files. Mechanical — don't re-analyze.
@@ -119,9 +122,14 @@ Files are already written. Read them and fix the issues. Write corrected files d
 ```bash
 TEST_OUT=$(npm test 2>&1)
 TRUNC=$({ echo "$TEST_OUT" | head -200; echo "...[middle truncated]..."; echo "$TEST_OUT" | tail -50; })
+gemini -p "The implementation has failures:
+
+$TRUNC
+
+Files are already written. Read them and fix the issues. Write corrected files directly." -y --no-sandbox 2>&1
 ```
 
-The tradeoff: `head -200` alone loses pass/fail counts; `tail -80` alone loses stack traces; the head+tail combo loses middle failures (acceptable — fix the first one, re-run, the next surfaces).
+The tradeoff: `head -200` alone loses pass/fail counts; `tail -50` alone loses stack traces; the head+tail combo loses middle failures (acceptable — fix the first one, re-run, the next surfaces).
 
 **Max 3 rounds.** If Gemini can't fix it in 3 tries, bail and write it yourself. Don't persist.
 
@@ -129,7 +137,16 @@ The tradeoff: `head -200` alone loses pass/fail counts; `tail -80` alone loses s
 
 **Tests are mandatory.** If Gemini didn't write tests, delegate.
 
-First detect the test framework: check `package.json` devDependencies (vitest/jest/mocha), `pyproject.toml` or `requirements*.txt` (pytest), `go.mod` (`go test`), `Cargo.toml` (`cargo test`), or existing test files (`*_test.*`, `tests/`, `spec/`). Substitute the actual framework into the prompt.
+First detect the test framework. Check manifests:
+
+- `package.json` devDependencies → vitest / jest / mocha
+- Python: `grep -q '^pytest' requirements*.txt 2>/dev/null` or `grep -qE '^\s*pytest\b' pyproject.toml 2>/dev/null`, or presence of `pytest.ini` / `[tool.pytest.ini_options]` in `pyproject.toml`. If none match but `.py` files exist, default to stdlib `unittest` (always available — don't assume pytest just because `pyproject.toml` or `requirements.txt` exists).
+- `go.mod` → `go test`
+- `Cargo.toml` → `cargo test`
+
+Or existing test files: `*_test.go`, `test_*.py`, `*.test.{js,ts,jsx,tsx}`, `*.spec.{js,ts,rb}`, `*_spec.rb`, `*Test.java`, `tests/`, `spec/`.
+
+Substitute the actual framework into the prompt.
 
 ```bash
 FRAMEWORK="<detected — e.g., pytest, jest, go test>"
@@ -168,6 +185,27 @@ Run each gate that exists. Skip the ones that don't. Don't fabricate commands a 
 
 Only stop when every detected gate passes.
 
+### Step 7: Commit and Push (MANDATORY)
+
+**Work is not complete until `git push` succeeds.** Tests passing locally is not "done" — leaving uncommitted work in the tree means the next session inherits a dirty state.
+
+```bash
+git add -A
+git status                       # eyeball the staged set
+git commit -m "<concise message>"
+git pull --rebase
+git push
+git status                       # MUST show "up to date with origin"
+```
+
+If the repo uses `bd` for issue tracking, also commit the bd database state alongside the code:
+
+```bash
+bd vc commit -m "<concise message>"
+```
+
+If push fails (rejected, conflicts, auth), resolve and retry until it succeeds. Don't stop with work stranded locally.
+
 ## Token Discipline
 
 | Temptation | Instead |
@@ -186,6 +224,7 @@ Only stop when every detected gate passes.
 |------|-----|
 | `-p "..."` | Non-interactive — **always required** |
 | `-y --no-sandbox` | Agentic: reads/writes files, auto-approves |
+| `--approval-mode plan` | Read-only: Gemini can read but not write — use for planning |
 | `-o text` | Text-only output for parsing |
 
 ## Troubleshooting

@@ -9,7 +9,7 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --status in_progress  # Claim work
 bd close <id>         # Complete work
-bd vc commit          # Commit bd database state
+bd vc commit -m "<message>"  # Commit bd database state (-m required)
 ```
 
 ## Landing the Plane (Session Completion)
@@ -24,7 +24,7 @@ bd vc commit          # Commit bd database state
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd vc commit
+   bd vc commit -m "<message>"
    git push
    git status  # MUST show "up to date with origin"
    ```
